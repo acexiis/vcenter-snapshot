@@ -1,0 +1,117 @@
+---
+
+- name: Take vCenter snapshots
+  hosts: all
+  gather_facts: false
+  collections:
+    - community.vmware
+  vars_files:
+    - ../vars.yml
+  tasks:
+    - name: Get the hostname from inventory file and set the vm_name
+      set_fact:
+        vm_name: "{{inventory_hostname.split('.')[0] }}"
+
+    - name: Print the VM name
+      debug:
+        var: vm_name
+    
+    - name: Get the vm information from vCenter and save vm_info
+      vmware_guest_info:
+        hostname: "{{ item }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        name: "{{ vm_name }}"
+        datacenter: "{{ datacenter_name }}"
+      register: vm_info
+      failed_when: vm_info is failed
+      ignore_errors: true
+      delegate_to: localhost
+      loop: "{{ vcenter_hostname }}"
+      loop_control:
+        loop_var: item
+  
+    - name: Print the vm_info
+      debug:
+        msg: "{{ vm_info }}"
+
+    - name: Print the vm_info
+      debug:
+        msg: "{{ vm_info.results[1].instance.hw_product_uuid }}"
+      ignore_errors: true
+
+    - name: Print the vm_info
+      debug:
+        msg: "{{ vm_info.results[0].instance.hw_product_uuid }}"
+      ignore_errors: true
+
+    - name: Check if any vCenter hostname succeeded
+      set_fact:
+        vcenter_hostname_succeeded: "{{ item.item }}"
+      when: item.failed == false
+      loop: "{{ vm_info.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+    
+    - name: Fail if no vCenter hostname succeeded
+      fail:
+        msg: "All vCenter hostnames failed"
+      when: vcenter_hostname_succeeded is not defined
+
+    - name: Save the selected vCenter hostname
+      set_fact:
+        selected_vcenter_hostname: "{{ vcenter_hostname_succeeded }}"
+      when: vcenter_hostname_succeeded is defined
+    
+    - name: Print the selected vCenter hostname
+      debug:
+        msg: "{{ selected_vcenter_hostname }}"
+    
+    - name: Find Guest's Folder using name
+      vmware_guest_find:
+        hostname: "{{ selected_vcenter_hostname }}"
+        username: "{{vcenter_username}}"
+        password: "{{vcenter_password}}"
+        validate_certs: no
+        name: "{{vm_name}}"
+      delegate_to: localhost
+      register: vm_facts
+    
+    - name: Print the vm_facts
+      debug:
+        msg: "{{ vm_facts }}"
+
+    - name: Create a snapshot if indice = 0
+      community.vmware.vmware_guest_snapshot:
+        hostname: "{{ selected_vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        datacenter: "{{ datacenter_name }}"
+        folder: "{{vm_facts.folders}}/snapshot"
+        uuid: "{{ vm_info.results[0].instance.hw_product_uuid }}"
+        name: "{{ vm_name }}"
+        state: present
+        snapshot_name: "{{ snapshot_name}}"
+        description: "{{ snapshot_description }}"
+      vars:
+        vmware_uuid: "{{ ansible_facts['product_serial'] | regex_replace('(^VMware-| |-)', '') | regex_search('^(.{8})(.{4})(.{4})(.{4})(.+)$','\\1','\\2','\\3','\\4','\\5') | join('-') }}"
+      ignore_errors: true
+      delegate_to: localhost
+
+    - name: Create a snapshot if indice = 1
+      community.vmware.vmware_guest_snapshot:
+        hostname: "{{ selected_vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        datacenter: "{{ datacenter_name }}"
+        folder: "{{vm_facts.folders}}/snapshot"
+        uuid: "{{ vm_info.results[1].instance.hw_product_uuid }}"
+        name: "{{ vm_name }}"
+        state: present
+        snapshot_name: "{{ snapshot_name}}"
+        description: "{{ snapshot_description }}"
+      vars:
+        vmware_uuid: "{{ ansible_facts['product_serial'] | regex_replace('(^VMware-| |-)', '') | regex_search('^(.{8})(.{4})(.{4})(.{4})(.+)$','\\1','\\2','\\3','\\4','\\5') | join('-') }}"
+      ignore_errors: true
+      delegate_to: localhost

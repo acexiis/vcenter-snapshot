@@ -1,0 +1,9 @@
+ansible_python_interpreter: /YOUR/PYTHON/INTERPRETER
+vcenter_username: "YOUR_VCENTER_ACCOUNT"
+vcenter_password: "YOUR_VCENTER_PASSWORD"
+vcenter_hostname:
+  - "DC1"
+  - "DC2"
+datacenter_name: "DC NAME"
+snapshot_name: "YOUR SNAPSHOT NAME"
+snapshot_description: "YOUR SNAPSHOT DESCRIPTION"%
