@@ -16,3 +16,8 @@ Dependencies
 Variables
 --------------
 All variables are explained into vars_sample.yml file
+
+Other
+=====
+
+Feel free to improve it and create PR.
